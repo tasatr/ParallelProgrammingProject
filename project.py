@@ -1,10 +1,16 @@
 import tkinter as tk
 from tkinter import *
-from tkinter import messagebox
 from tkinterweb import HtmlFrame #import the HtmlFrame widget
+import time
+from threading import *
+import random
 
 
-class Example(tk.Tk):
+lastFrame1LoadingTime = 0;
+lastFrame2LoadingTime = 0;
+pageUrl = '';
+
+class PLProject(tk.Tk):
     def __init__(self):
         tk.Tk.__init__(self)
 
@@ -18,11 +24,10 @@ class Example(tk.Tk):
 
         self.b1 = Button(self.inputFrame, text="Show URL", command=lambda: self.url_entered(self.e1.get())).grid(row=0, column=2)
 
-
         # Displaying the frame1 in row 1 and column 0
         self.frame1 = LabelFrame(self, text="First Frame", fg="white", padx=15, pady=15)
         self.frame1.grid(row=1, column=0)
-        self.firstFrame = HtmlFrame(self.frame1)  # create HTML browser
+        self.firstFrame = HtmlFrame(self.frame1, messages_enabled = False)  # create HTML browser
         self.firstFrame.load_html("<h1>Please enter a URL to see something!</h1>")
         #    firstFrame.load_website(e1.get())
 
@@ -34,64 +39,66 @@ class Example(tk.Tk):
 
         # Displaying the frame2 in row 2 and column 0
         self.frame2.grid(row=2, column=0)
-        self.secondFrame = HtmlFrame(self.frame2)  # create HTML browser
-        # myhtmlframe.load_html("<h1>Hello, World!</h1>") #Load some HTML code
+        self.secondFrame = HtmlFrame(self.frame2, messages_enabled = False)  # create HTML browser
         self.secondFrame.load_website("courses.cs.ut.ee")
         self.secondFrame.pack(side="bottom", expand=True)  # attach the HtmlFrame widget to the parent window
         self.secondFrame.pack()
 
+    def timed_refresh_frame1(self):
+        self.firstFrame.after(60000, lambda: self.reset_first_frame());
 
-        # self.geometry("600x400")
-        # self.current_ticket_number = 1
-        # self.data = [[97, "Mike"], [98, "Kaite"], [99, "Tom"]]
-        # self.display_frame = tk.Frame(self)
-        # self.display_frame.grid(row=2, column=0, columnspan=3, sticky="nsew")
-        #
-        # self.lbl1 = tk.Label(self, text="Next ticket number: {}".format(self.current_ticket_number))
-        # self.lbl1.grid(row=0, column=0)
-        # self.lbl2 = tk.Label(self, text="Customer Name: ".format(self.current_ticket_number))
-        # self.lbl2.grid(row=0, column=1)
-        # self.entry1 = tk.Entry(self)
-        # self.entry1.grid(row=0, column=2)
-        #
-        # tk.Button(self, text="Refresh List", command=self.refresh).grid(row=1, column=0, pady=5)
-        # tk.Button(self, text="Submit new ticket", command=self.new_ticket).grid(row=1, column=1, pady=5)
+    def timed_refresh_frame2(self):
+        self.secondFrame.after(60000, lambda: self.reset_second_frame());
 
-        #self.timed_refresh()
+    def reset_first_frame(self):
+        print("Resetting frame 1")
+        global lastFrame1LoadingTime
+        lastFrame1LoadingTime = 0
+        self.firstFrame.load_html("<h1>Please enter a URL to see something!</h1>")
+        self.frame1.grid()
 
-    def new_ticket(self):
-        x = self.entry1.get().strip()
-        if x != "":
-            self.data.append([self.current_ticket_number, x])
-            #self.refresh() # you could do self.refresh() here if you want to update as soon as you create a ticket
-            #I left it out though so you can see how after() works below.
-            if self.current_ticket_number >= 99:
-                self.current_ticket_number = 1
+    def reset_second_frame(self):
+        print("Resetting frame 2")
+        global lastFrame2LoadingTime
+        lastFrame2LoadingTime = 0
+        self.secondFrame.load_html("<h1>Please enter a URL to see something!</h1>")
+        self.frame2.grid()
+
+    def url_entered(self, pgUrl):
+        global pageUrl #For some reason passing pageUrl as parameter inside Thread causes thread to wait
+        pageUrl = pgUrl
+        if (lastFrame1LoadingTime == 0 and lastFrame2LoadingTime == 0):
+            print("Both frames are empty. Choosing a new frame at random.")
+            frameToLoad = random.randint(0, 1)
+            print(frameToLoad)
+            if (frameToLoad == 0):
+                t1 = Thread(target=self.reload_frame_1)
+                t1.start()
+                t2 = Thread(target=self.timed_refresh_frame1)
+                t2.start()
             else:
-                self.current_ticket_number += 1
-
-    def refresh(self):
-        self.display_frame.destroy()
-        self.display_frame = tk.Frame(self)
-        self.display_frame.grid(row=2, column=0, columnspan=3, sticky="nsew")
-        for ndex, item in enumerate(self.data):
-            tk.Label(self.display_frame, text=r"Order #{} is ready for {}.".format(item[0], item[1])).grid(row=ndex, column=1)
-            tk.Button(self.display_frame, text=r"Remove Ticket".format(item[0], item[1]), command=lambda x=ndex: self.remove_ticket(x)).grid(row=ndex, column=0)
-
-    def remove_ticket(self, ndex):
-        self.data.pop(ndex)
-        self.refresh()
-
-    def timed_refresh(self):
-        #this after statement is set for every 6 seconds
-        self.after(6000, self.url_entered(''))
-        #self.refresh()
-
-    def url_entered(self, pageUrl):
-        self.reload_frame_2(pageUrl)
+                t3 = Thread(target=self.reload_frame_2)
+                t3.start()
+                t4 = Thread(target=self.timed_refresh_frame2)
+                t4.start()
+        elif (lastFrame1LoadingTime < lastFrame2LoadingTime):
+            print("Loading in frame 1.")
+            t5 = Thread(target=self.reload_frame_1)
+            t5.start()
+            t6 = Thread(target=self.timed_refresh_frame1)
+            t6.start()
+        else:
+            print("Loading in frame 2.")
+            t7 = Thread(target=self.reload_frame_2)
+            t7.start()
+            t8 = Thread(target=self.timed_refresh_frame2)
+            t8.start()
 
 
-    def reload_frame_1(self, pageUrl):
+
+    def reload_frame_1(self):
+        global lastFrame1LoadingTime
+        lastFrame1LoadingTime = time.time()
         if (pageUrl):
             self.firstFrame.load_website(pageUrl)
             self.frame1.grid()
@@ -99,7 +106,9 @@ class Example(tk.Tk):
             self.firstFrame.load_html("<h1>Please enter a URL to see something!</h1>")
             self.frame1.grid()
 
-    def reload_frame_2(self, pageUrl):
+    def reload_frame_2(self):
+        global lastFrame2LoadingTime
+        lastFrame2LoadingTime = time.time()
         if (pageUrl):
             self.secondFrame.load_website(pageUrl)
             self.frame2.grid()
@@ -108,4 +117,4 @@ class Example(tk.Tk):
             self.frame2.grid()
 
 if __name__ == "__main__":
-    Example().mainloop()
+    PLProject().mainloop()
